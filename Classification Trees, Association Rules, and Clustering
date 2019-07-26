@@ -1,0 +1,129 @@
+#● Task 1: Classification tree :
+#1. Read the dataset from the above URL into R. Show the step that you used to accomplish this. Remember, there is no header in this dataset (read.csv defaults to header=TRUE, so you will need to make a small change to the function).
+CVRD<-read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/voting-records/house-votes-84.data",header = FALSE)
+
+#2. Create a name for each column based on the ¡°attribute information¡± in the first link above.
+names(CVRD)<-c("Class Name","handicapped-infants","water-project-cost-sharing","adoption-of-the-budget-resolution","physician-fee-freeze","el-salvador-aid",
+         "religious-groups-in-schools","anti-satellite-test-ban","aid-to-nicaraguan-contras","mx-missile","immigration",
+         "synfuels-corporation-cutback","education-spending","superfund-right-to-sue","crime","duty-free-exports","export-administration-act-south-africa")
+
+#3. How many members of this dataset are Democrats? How many are Republicans? 
+table(CVRD$`Class Name`)
+
+#4. Using your assigned seed value, partition your data into training (60%) and validation (40%) sets. 
+set.seed(400)
+library(dplyr)
+CVRD1<-sample_n(CVRD,435)
+tr<-slice(CVRD1,1:261)
+va<-slice(CVRD1,262:435)
+
+#5. Create a classification tree model with your training set along with a tree graph. The goal of your tree should be to classify individual members of Congress as either ¡°Democrat¡± or ¡°Republican¡± based on their voting records. You may wish to add
+#minsplit and minbucket arguments (but this is not a requirement). Use rpart.plot() to create a graphic depiction of your model. Show the steps you used to build the model, show the result you saw with rpart.plot() and describe your tree model in a few
+#sentences (note: You do not need to conduct any outside research for this. You can describe the particular bills using the description given at the link provided at the to of this prompt.
+install.packages("rpart")
+install.packages("rpart.plot")
+library(rpart)
+model<-rpart(`Class Name`~.,data=tr,method="class",minsplit=2,minbucket=5)
+library(rpart.plot)
+rpart.plot(model)
+str(tr)
+# minbucket: every leaf node (terminal node) would have at least 5 observations in that bucket. minsplit: the minimum number of observations that must exist in a node in order for a split.
+
+#6. Generate confusion matrices that show your model¡¯s performance against your training and validation sets. How did your model perform? Write 1-2 sentences to describe your model¡¯s performance.
+library(e1071)
+pred <- predict(model, va, type="class")
+library(caret)
+confusionMatrix(pred, va$`Class Name`)
+
+library(e1071)
+pred <- predict(model, tr, type="class")
+library(caret)
+confusionMatrix(pred, tr$`Class Name`)
+
+# ●Task 2: Association rules
+#1. 1. Describe “audioscrobbler” by answering following questions: What is the class of “audioscrobbler”? & How many rows and columns does audioscrobbler contain?
+install.packages("arules")
+library(nutshell)
+library(arules)
+data(audioscrobbler)
+class(audioscrobbler)
+str(audioscrobbler)
+nrow(audioscrobbler)
+ncol(audioscrobbler)
+
+#2. Generate an item frequency barplot for the artists with support rate greater than 20%.
+library(arules)
+itemFrequencyPlot(audioscrobbler,support=0.2)
+
+#3. Now, create a subset of rules that contain your artist . Select 4 different rules, (2 lhs and 2 rhs), and explain them
+#in the way you would explain them to your roommate. Remember, every rule has three components: support, confidence, and lift .
+rulesr <- apriori (data=audioscrobbler, parameter=list (supp=0.05,conf = 0.08), appearance = list (rhs="Rammstein"), control = list (verbose=F)) 
+rulesl <- apriori (data=audioscrobbler, parameter=list (supp=0.05,conf = 0.08), appearance = list (lhs="Rammstein"), control = list (verbose=F)) 
+rules_confr <- sort (rulesr, by="lift", decreasing=TRUE)
+rules_confl<- sort (rulesl, by="lift", decreasing=TRUE)
+inspect(head(rules_confr))
+inspect(head(rules_confl))
+
+#4. Using the plot() function in the arulesViz package, generate a scatter plot of any three rules involving your artist. 
+install.packages("arulesViz")
+library("arulesViz")
+plot(rules_confr[c(1,2,3)])
+
+#5. Again using the plot() function in the arulesViz package, generate a plot for any three of your rules. This time, add two more arguments to the function: method="graph",
+#engine="htmlwidget". What do you see now? Include a screenshot of your plot, along with the code you used to generate the plot. Describe your results in a sentence or two.
+library("arulesViz")
+plot(rules_confr[c(1,2,3)],method="graph",engine="htmlwidget")
+
+#● Task 3: Clustering
+rar<-read.csv("tripadvisor_review.csv")
+# library(readr) raa<-read_csv("tripadvisor_review.csv")
+
+#2.Perform some “data wrangling” (a.k.a. data preparation) so that User IDs become the row names and all your columns are numeric.
+row.names(rar)<-rar[,1]
+rar<-rar[,-1]
+
+#3.Should this data be normalized? Why or why not? If so, normalize your data, and show the steps that you took in order to make this happen. If not, then you don¡¯t need to normalize, but just explain why.
+library(caret)
+norm.values<-preProcess(rar[,1:10], method=c("center","scale"))
+rar.norm.df<-rar
+rar.norm.df[,1:10]<-predict(norm.values,rar[,1:10])
+View(rar.norm.df)
+
+#4. Use the kmeans algorithm to separate the users into clusters. To determine the optimal number of clusters to use, consider using an elbow chart, or another means of analysis of your preference.
+mydata <-rar.norm.df
+wss <- (nrow(mydata)-1)*sum(apply(mydata,2,var))
+for (i in 1:15) wss[i] <- sum(kmeans(mydata,centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
+
+km<-kmeans(rar.norm.df, 2)
+km$center
+km$size
+
+install.packages("factoextra")
+library(factoextra)
+library(ggplot2)
+km.res <- kmeans(rar.norm.df,2)
+fviz_cluster(km.res, data = rar.norm.df)
+
+rar<-read.csv("tripadvisor_review.csv")
+row.names(rar)<-rar[,1]
+rar<-rar[,-1]
+k.max<-15
+data<-rar
+wss<-sapply(1:k.max, function(k){kmeans(rar,k,nstart=50,iter.max=15)$tot.withinss})
+wss
+plot(1:k.max,wss,type="b",pch=19,frame=FALSE,xlab="Number of Clusters K",ylab="Total within-clusters sum of squares")
+
+rar.norm <- sapply(rar, scale)
+row.names(rar.norm) <- row.names(rar)
+rar2<-as.data.frame(rar.norm)
+k.max<-15
+data<-rar2
+wss<-sapply(1:k.max, function(k){kmeans(rar2,k,nstart=50,iter.max=15)$tot.withinss})
+wss
+plot(1:k.max,wss,type="b",pch=19,frame=FALSE,xlab="Number of Clusters K",ylab="Total within-clusters sum of squares")
+
+plot(c(0), xaxt='n',ylab = "",type = "l",ylim = c(min(km$centers),max(km$centers)),xlim = c(0,10))
+axis(1,at=c(1:10), labels = names(rar.norm.df))
+for (i in c(1:2))lines(km$centers[i,],lty=i,lwd=2, col=ifelse(i %in%c(1,3,5), "black","dark grey"))
+text(x=0.5,y=km$centers[,1],labels = paste("Cluster",c(1:2)))
